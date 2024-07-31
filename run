@@ -94,10 +94,8 @@ do
         echo
         echo "export VAULT_ADDR=http://127.0.0.1:8200"
         echo
-        echo "export VAULT_TOKEN=$(cat ./sensitive/vault.txt | grep '^Initial' | awk '{print $4}')"
+        echo "cat ./sensitive/vault.txt"
         echo
-        echo "echo $VAULT_TOKEN"
-        echo 
         echo "vault login"
         echo
         echo "open http://localhost:8080"
