@@ -1,0 +1,370 @@
+#!/bin/bash
+set -e
+
+function cleanup() {
+  pushd compose
+  docker-compose down --volumes
+  docker-compose rm -fs 
+  docker system prune -f
+  docker volume prune -f
+  popd
+  # Purge the TF State
+  rm -rf ./terraform/.terraform
+  rm -rf ./terraform/.terraform.lock.hcl
+  rm -rf ./terraform/terraform.tfstate
+  rm -rf ./terraform/terraform.tfstate.backup
+  rm -rf ./sensitive/*.pem
+  rm -rf ./sensitive/*.json
+  rm -rf ./sensitive/*.txt
+  exit 0
+}
+
+trap cleanup SIGKILL SIGINT
+
+function init_compose() {
+  pushd compose/
+  docker-compose up -d --build
+
+  popd
+}
+
+function init_terraform() {
+  pushd terraform
+  terraform init
+  terraform apply -auto-approve
+  popd
+}
+
+# Test with login to Boundary after provisioning
+function login() {
+  boundary authenticate password -login-name jeff -password foofoofoo -auth-method-id $(primary_org_ampw)
+}
+
+function primary_org_id() {
+  strip $(boundary scopes list -keyring-type=none -format json | jq  -c '.items[] | select(.name | contains("primary")) | .id')
+}
+
+function primary_org_ampw() {
+  strip $(boundary auth-methods list -keyring-type=none -scope-id $(primary_org_id) -format json | jq -c '.items[].id') 
+}
+
+function strip() {
+  echo "$1" | tr -d '"'
+}
+
+for arg in "$@"
+do
+    case $arg in
+        all)
+        # cp ~/Downloads/*.hclic /tmp
+
+        init_compose
+
+        echo " "
+        echo
+        echo "# To verify your install:"
+        echo
+        echo "docker logs compose-vaultsetup-1"
+        echo
+        echo "docker logs phpldapadmin-bar"
+        echo "docker logs phpldapadmin-foo"
+        echo "docker logs phpldapadmin-qux"
+        echo
+        echo "docker logs openldap-bar"
+        echo "docker logs openldap-foo"
+        echo "docker logs openldap-qux"
+        echo 
+        echo "# To login to vault:"
+        echo
+        echo "cat ./sensitive/vault.txt | grep '^Initial' | awk '{print $4}'"
+        echo
+        echo "vault login"
+        echo
+        echo "vault read ldap_foo/creds/dynamic-role"
+        echo "vault read ldap_bar/creds/dynamic-role"
+        echo "vault read ldap_qux/creds/dynamic-role"
+        echo
+        echo "open http://localhost:8200/ui/vault/secrets"
+        echo
+        echo "cn=admin,dc=foo,dc=local"
+        echo "cn=admin,dc=bar,dc=local"
+        echo "cn=admin,dc=qux,dc=local"
+        echo
+        echo "password is admin"
+        echo
+        echo "export VAULT_ADDR=http://127.0.0.1:8200"
+        echo
+        echo "open http://localhost:8080"
+        echo "open http://localhost:8081"
+        echo "open http://localhost:8082"
+        echo
+
+        # echo "pausing for Vault init..."
+        # sleep 5
+
+        # # export VAULT_ROOT_TOKEN="root"
+        # # export VAULT_TOKEN=$VAULT_ROOT_TOKEN
+        # export VAULT_ADDR="http://127.0.0.1:8200"
+        # export VAULT_SKIP_VERIFY=true
+        # # vault login root
+
+        # echo "Initializing Vault"
+        # vault operator init | tee /tmp/vault.txt > /dev/null
+        # # sudo cat /tmp/vault.txt > /tmp/vault.txt
+
+        # echo "Sourcing Vault"
+        # export VAULT_TOKEN=$(cat /tmp/vault.txt | grep '^Initial' | awk '{print $4}')
+        # export UNSEAL_1=$(cat /tmp/vault.txt | grep '^Unseal Key 1' | awk '{print $4}')
+        # export UNSEAL_2=$(cat /tmp/vault.txt | grep '^Unseal Key 2' | awk '{print $4}')
+        # export UNSEAL_3=$(cat /tmp/vault.txt | grep '^Unseal Key 3' | awk '{print $4}')
+
+        # echo "Unsealing Vault"
+        # vault operator unseal $UNSEAL_1
+        # vault operator unseal $UNSEAL_2
+        # vault operator unseal $UNSEAL_3
+
+
+        # # vault token lookup | grep policies
+        
+        # init_terraform
+        # export ROOT_TOKEN=${VAULT_TOKEN}
+        # vault login ${ROOT_TOKEN}
+
+        # vault write -format=json -f kmip/scope/my-service/role/admin/credential/generate | tee kmip.json
+        # vault_kmip_ca_chain=$(cat kmip.json | jq -r '.data.ca_chain')
+        # vault_kmip_certificate=$(cat kmip.json | jq -r '.data.certificate')
+        # vault_kmip_private_key=$(cat kmip.json | jq -r '.data.private_key')
+        # vault_kmip_serial_number=$(cat kmip.json | jq -r '.data.serial_number')
+
+        # echo "vault_kmip_ca_chain: ${vault_kmip_ca_chain}"
+        # echo "vault_kmip_certificate: ${vault_kmip_certificate}"
+        # echo "vault_kmip_private_key: ${vault_kmip_private_key}"
+        # echo "vault_kmip_serial_number: ${vault_kmip_serial_number}"
+
+        # echo "Building certs for mongo..."
+        # echo ${vault_kmip_ca_chain} | tee ca.pem
+        # echo ${vault_kmip_certificate} | tee client.pem
+
+        # echo "Copying certs for mongo..."
+        # docker cp ./ca.pem compose-mongo-1:/ 
+        # docker cp ./client.pem compose-mongo-1:/ 
+
+
+        # # https://www.mongodb.com/docs/v4.0/tutorial/configure-encryption/#encrypt-using-an-existing-key
+        # echo " \n Here is the syntax you'll need to start mongo..."
+        # syntax_mongo_start="mongo --host localhost:mongo --enableEncryption --kmipServerName vault  --kmipPort 5696 --kmipServerCAFile ca.pem  --kmipClientCertificateFile client.pem"
+        # echo " \n" + "${syntax_mongo_start}"
+
+        # echo " \n Here is the syntax you'll need to update mongo KMIP..."
+        # syntax_mongo_kmip="docker exec compose-mongo-1 mongod --enableEncryption --kmipServerName vault \
+        #               --kmipPort 5696 --kmipServerCAFile ca.pem \
+        #               --kmipClientCertificateFile client.pem --kmipKeyIdentifier ${vault_kmip_serial_number}"
+        # echo " \n" + "${syntax_mongo_kmip}"
+
+        # echo " \n Configuring MongoDB for KIMP from Vault..."
+        # bash -c "${syntax_mongo_kmip}"
+
+
+        # read -p "Would you like to rotate KMIP for Mongo Now? " -n 1 -r
+        #   # echo    # (optional) move to a new line
+        #   if [[ $REPLY =~ ^[Yy]$ ]]
+        #   then
+        #       rm -rf kmip.json
+        #       echo
+        #       echo "Deleted kmip.json!"
+        #       echo
+        #       echo "Requesting New Client Certificate"
+
+
+
+        #       vault write -format=json -f kmip/scope/my-service/role/admin/credential/generate | tee kmip.json
+        #       vault_kmip_ca_chain=$(cat kmip.json | jq -r '.data.ca_chain')
+        #       vault_kmip_certificate=$(cat kmip.json | jq -r '.data.certificate')
+        #       vault_kmip_private_key=$(cat kmip.json | jq -r '.data.private_key')
+        #       vault_kmip_serial_number=$(cat kmip.json | jq -r '.data.serial_number')
+
+        #       echo "vault_kmip_ca_chain: ${vault_kmip_ca_chain}"
+        #       echo "vault_kmip_certificate: ${vault_kmip_certificate}"
+        #       echo "vault_kmip_private_key: ${vault_kmip_private_key}"
+        #       echo "vault_kmip_serial_number: ${vault_kmip_serial_number}"
+
+        #       echo "Building certs for mongo..."
+        #       echo ${vault_kmip_ca_chain} | tee rotated_ca.pem
+        #       echo ${vault_kmip_certificate} | tee rotated_client.pem
+
+        #       echo "Copying certs for mongo..."
+        #       docker cp ./rotated_ca.pem compose-mongo-1:/ 
+        #       docker cp ./rotated_client.pem compose-mongo-1:/ 
+
+
+
+
+        #       echo " \n Here is the syntax you'll need to rotate mongo KMIP..."
+        #       syntax_mongo_kmip_rotate="docker exec compose-mongo-1 mongod --enableEncryption --kmipRotateMasterKey \
+        #         --kmipServerName vault \
+        #         --kmipServerCAFile rotated_ca.pem --kmipClientCertificateFile rotated_client.pem"
+        #       echo " \n" + "${syntax_mongo_kmip_rotate}"
+
+        #       bash -c "${syntax_mongo_kmip_rotate}"
+        #   fi
+        #   break
+
+
+        shift
+        ;;
+        login)
+        login
+        shift
+        ;;
+        cleanup)
+        cleanup
+        shift
+        ;;
+        *)
+        echo "cmd not found: try 'all', 'login', or 'cleanup'"
+        shift
+        ;;
+    esac
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
