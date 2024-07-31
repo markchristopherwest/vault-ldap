@@ -29,13 +29,16 @@ open http://localhost:8080
 
 # To verify your vault init container logs:
 
+
+```
 docker logs tools-vaultsetup-1
+```
 
 # To verify your vault service container logs:
 
+
+```
 docker logs tools-vault-1
-
-
 ```
 
 
