@@ -34,7 +34,7 @@ loginShell: /bin/bash
 homeDirectory: /home/{{.Username}}
 uidNumber: 14583102
 gidNumber: 14564100
-userPassword: {{.Username}}
+userPassword: {{.Password}}
 mail: {{.Username}}@bar.local
 gecos: {{.Username}}
 EOT
@@ -67,7 +67,7 @@ loginShell: /bin/bash
 homeDirectory: /home/{{.Username}}
 uidNumber: 14583102
 gidNumber: 14564100
-userPassword: {{.Username}}
+userPassword: {{.Password}}
 mail: {{.Username}}@foo.local
 gecos: {{.Username}}
 EOT
@@ -100,7 +100,7 @@ loginShell: /bin/bash
 homeDirectory: /home/{{.Username}}
 uidNumber: 14583102
 gidNumber: 14564100
-userPassword: {{.Username}}
+userPassword: {{.Password}}
 mail: {{.Username}}@qux.local
 gecos: {{.Username}}
 EOT
