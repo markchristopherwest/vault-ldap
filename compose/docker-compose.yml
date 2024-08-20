@@ -179,4 +179,6 @@ services:
       - type: bind
         source: ./../sensitive
         target: /sensitive
+    healthcheck:
+      test: "exit 0"
 

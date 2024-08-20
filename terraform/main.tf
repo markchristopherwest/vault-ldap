@@ -48,12 +48,15 @@ resource "vault_ldap_secret_backend" "config" {
   userdn        = "${each.value.userdn}"
 }
 
+resource "random_pet" "server" {
+}
+
 resource "vault_ldap_secret_backend_dynamic_role" "role" {
   for_each = {
     for k, v in var.ldap_manifest : k => v
   }
   mount         = vault_ldap_secret_backend.config[each.key].path
-  role_name     = "dynamic-role"
+  role_name     = "dynamic_role"
   creation_ldif = each.value.creation_ldif
   deletion_ldif = each.value.deletion_ldif
   rollback_ldif = each.value.rollback_ldif
